@@ -48,7 +48,7 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Centered Quiz Layout */
+        /* Centered Quiz Layout - Resized to 90% (30rem * 0.9 = 27rem) */
         #main-quiz-container {
             position: absolute;
             top: 50%;
@@ -56,7 +56,7 @@
             transform: translate(-50%, -50%);
             z-index: 10;
             pointer-events: auto;
-            width: 30rem; /* Slightly wider for larger text */
+            width: 27rem; 
         }
 
         .option-btn {
@@ -66,7 +66,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            min-height: 70px; /* Taller for larger text */
+            min-height: 63px; /* 70px * 0.9 = 63px */
             padding: 0 1.5rem;
         }
         .option-btn:hover {
@@ -76,18 +76,18 @@
         }
         .option-btn:active { transform: scale(0.98); }
         
-        /* Increased English Text Size */
+        /* Resized English Text Size */
         .en-text {
-            font-size: 1.25em;
+            font-size: 1.1em; /* 1.25em * 0.9 = ~1.1em */
             font-weight: 700;
             color: #fff;
             max-width: 60%;
             line-height: 1.1;
         }
 
-        /* Large Bold Chinese Text */
+        /* Resized Large Bold Chinese Text */
         .cn-text { 
-            font-size: 1.8em; 
+            font-size: 1.6em; /* 1.8em * 0.9 = ~1.6em */
             font-weight: 900; 
             color: #60a5fa; 
             text-shadow: 0 0 15px rgba(96, 165, 250, 0.5);
@@ -132,11 +132,11 @@
         <!-- Main Centered Quiz Card -->
         <div id="main-quiz-container" class="pointer-events-none">
             <div class="glass p-8 rounded-[3.5rem] pointer-events-auto flex flex-col shadow-2xl border-2 border-white/10">
-                <!-- Large Centered Flag -->
+                <!-- Large Centered Flag - Height resized (40 * 0.9 = 36) -->
                 <div class="flex flex-col items-center mb-8">
                     <div class="relative mb-4">
                         <div class="absolute -inset-10 bg-blue-500/30 blur-3xl rounded-full opacity-50"></div>
-                        <img id="flag-img" src="" class="relative h-40 w-auto rounded-2xl flag-shadow border-4 border-white/30" alt="Flag">
+                        <img id="flag-img" src="" class="relative h-36 w-auto rounded-2xl flag-shadow border-4 border-white/30" alt="Flag">
                     </div>
                     <div class="text-[10px] text-white/40 font-black uppercase tracking-[0.4em]">请识别此国旗</div>
                 </div>
@@ -162,8 +162,8 @@
         </div>
     </div>
 
-    <!-- Feedback -->
-    <div id="feedback" class="absolute top-1/2 left-50% z-20 text-white font-black text-8xl pointer-events-none drop-shadow-2xl italic text-center" style="left:50%; transform: translate(-50%, -50%);"></div>
+    <!-- Feedback - Smaller text size for mobile (5xl instead of 8xl) -->
+    <div id="feedback" class="absolute top-1/2 left-50% z-20 text-white font-black text-5xl pointer-events-none drop-shadow-2xl italic text-center" style="left:50%; transform: translate(-50%, -50%);"></div>
 
     <!-- Game Over -->
     <div id="game-over" class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center hidden backdrop-blur-xl">
@@ -247,7 +247,6 @@
         // --- AUDIO ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // Unlock audio context on smartphones via a global interaction listener
         function unlockAudio() {
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
@@ -391,7 +390,8 @@
         function showFeedback(txt, cls) {
             const el = document.getElementById('feedback');
             el.textContent = txt;
-            el.className = `absolute top-1/2 left-1/2 z-20 font-black text-8xl pointer-events-none drop-shadow-2xl show ${cls}`;
+            // Use 5xl for mobile-friendly display
+            el.className = `absolute top-1/2 left-1/2 z-20 font-black text-5xl pointer-events-none drop-shadow-2xl show ${cls}`;
             setTimeout(() => el.classList.remove('show'), 900);
         }
 
