@@ -56,7 +56,7 @@
             transform: translate(-50%, -50%);
             z-index: 10;
             pointer-events: auto;
-            width: 28rem;
+            width: 30rem; /* Slightly wider for larger text */
         }
 
         .option-btn {
@@ -66,7 +66,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            min-height: 60px;
+            min-height: 70px; /* Taller for larger text */
+            padding: 0 1.5rem;
         }
         .option-btn:hover {
             background: rgba(59, 130, 246, 0.3);
@@ -75,11 +76,22 @@
         }
         .option-btn:active { transform: scale(0.98); }
         
+        /* Increased English Text Size */
+        .en-text {
+            font-size: 1.25em;
+            font-weight: 700;
+            color: #fff;
+            max-width: 60%;
+            line-height: 1.1;
+        }
+
+        /* Large Bold Chinese Text */
         .cn-text { 
             font-size: 1.8em; 
             font-weight: 900; 
             color: #60a5fa; 
             text-shadow: 0 0 15px rgba(96, 165, 250, 0.5);
+            white-space: nowrap;
         }
 
         .flag-shadow {
@@ -232,6 +244,30 @@
         const atmosVS = `varying vec3 vN; void main() { vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
         const atmosFS = `varying vec3 vN; void main() { float i = pow(0.6 - dot(vN, vec3(0, 0, 1.0)), 2.5); gl_FragColor = vec4(0.4, 0.7, 1.0, 1.0) * i; }`;
 
+        // --- AUDIO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Unlock audio context on smartphones via a global interaction listener
+        function unlockAudio() {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            window.removeEventListener('click', unlockAudio);
+            window.removeEventListener('touchstart', unlockAudio);
+        }
+        window.addEventListener('click', unlockAudio);
+        window.addEventListener('touchstart', unlockAudio);
+
+        function playSfx(freq, type = 'sine') {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + 0.3);
+        }
+
         function init() {
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
@@ -282,17 +318,6 @@
             startGame();
         }
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSfx(freq, type = 'sine') {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-            o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-            o.connect(g); g.connect(audioCtx.destination);
-            o.start(); o.stop(audioCtx.currentTime + 0.3);
-        }
-
         function handleDrag(e) {
             if (!isDragging) return;
             globe.rotation.y += (e.clientX - previousMousePosition.x) * 0.005;
@@ -336,8 +361,8 @@
             container.innerHTML = '';
             options.forEach(opt => {
                 const btn = document.createElement('button');
-                btn.className = 'option-btn bg-white/5 p-4 rounded-3xl text-white font-bold text-[13px] uppercase tracking-wider';
-                btn.innerHTML = `<span>${opt.name}</span> <span class="cn-text">${opt.cnName}</span>`;
+                btn.className = 'option-btn bg-white/5 rounded-3xl text-white tracking-wider';
+                btn.innerHTML = `<span class="en-text">${opt.name}</span> <span class="cn-text">${opt.cnName}</span>`;
                 btn.onclick = () => handleChoice(opt.id);
                 container.appendChild(btn);
             });
