@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>禹辰 国家猜猜猜</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;900&display=swap');
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Poppins', 'Microsoft YaHei', sans-serif; }
+        
+        /* Glassmorphism UI */
+        .glass { 
+            background: rgba(0, 0, 0, 0.75); 
+            backdrop-filter: blur(15px); 
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+        }
+
+        #feedback { 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            opacity: 0; 
+            transform: translate(-50%, -50%) scale(0.5); 
+        }
+        #feedback.show { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        
+        /* Loading Overlay */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 1s ease;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Centered Quiz Layout */
+        #main-quiz-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            pointer-events: auto;
+            width: 28rem;
+        }
+
+        .option-btn {
+            transition: all 0.2s ease;
+            text-align: left;
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 60px;
+        }
+        .option-btn:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: #60a5fa;
+            transform: scale(1.02);
+        }
+        .option-btn:active { transform: scale(0.98); }
+        
+        .cn-text { 
+            font-size: 1.8em; 
+            font-weight: 900; 
+            color: #60a5fa; 
+            text-shadow: 0 0 15px rgba(96, 165, 250, 0.5);
+        }
+
+        .flag-shadow {
+            filter: drop-shadow(0 10px 30px rgba(59, 130, 246, 0.6));
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner mb-4"></div>
+        <div class="text-blue-400 font-bold tracking-widest text-xs uppercase text-center px-4">正在连接卫星...<br>准备地球全景图中</div>
+    </div>
+
+    <!-- UI Layer -->
+    <div class="absolute inset-0 pointer-events-none z-10 flex flex-col justify-between p-6">
+        <!-- Top Stats -->
+        <div class="flex justify-between items-start">
+            <div class="glass p-5 rounded-3xl pointer-events-auto min-w-[240px]">
+                <h1 class="text-white font-black text-xl tracking-tighter flex items-center gap-2">
+                    <span class="text-blue-500 text-2xl">🌍</span> 禹辰 <span class="text-blue-400">国家猜猜猜</span>
+                </h1>
+                <div class="flex items-center gap-3 mt-4">
+                    <div class="bg-white/10 h-2 rounded-full flex-1 overflow-hidden">
+                        <div id="timer-bar" class="h-full bg-gradient-to-r from-blue-500 to-cyan-300 w-full transition-all duration-1000"></div>
+                    </div>
+                    <span id="timer-text" class="text-white font-mono font-black text-sm">120s</span>
+                </div>
+                <div class="mt-2 text-xs text-white/50 font-bold tracking-widest">当前进度: <span id="progress-text" class="text-blue-400">0/20</span></div>
+            </div>
+            
+            <div class="glass p-5 rounded-3xl pointer-events-auto text-right min-w-[140px]">
+                <div class="text-[10px] text-blue-400 font-black uppercase tracking-widest">当前得分</div>
+                <div id="score" class="text-4xl text-white font-black leading-none mt-1">0</div>
+            </div>
+        </div>
+
+        <!-- Main Centered Quiz Card -->
+        <div id="main-quiz-container" class="pointer-events-none">
+            <div class="glass p-8 rounded-[3.5rem] pointer-events-auto flex flex-col shadow-2xl border-2 border-white/10">
+                <!-- Large Centered Flag -->
+                <div class="flex flex-col items-center mb-8">
+                    <div class="relative mb-4">
+                        <div class="absolute -inset-10 bg-blue-500/30 blur-3xl rounded-full opacity-50"></div>
+                        <img id="flag-img" src="" class="relative h-40 w-auto rounded-2xl flag-shadow border-4 border-white/30" alt="Flag">
+                    </div>
+                    <div class="text-[10px] text-white/40 font-black uppercase tracking-[0.4em]">请识别此国旗</div>
+                </div>
+
+                <!-- Multiple Choice Options -->
+                <div id="options-container" class="grid grid-cols-1 gap-3">
+                    <!-- Buttons generated via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Stats & Info -->
+        <div class="flex justify-end items-end w-full">
+            <div class="flex flex-col items-end gap-3">
+                <div id="streak-badge" class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-full font-black text-sm opacity-0 transition-all shadow-xl">
+                    连续正确 x<span id="streak-count">0</span> 🔥
+                </div>
+                <div class="glass px-5 py-3 rounded-2xl text-white/50 text-[9px] max-w-[200px] leading-tight uppercase tracking-wider font-bold pointer-events-auto">
+                    目标: <span class="text-white">完成20个国家匹配</span><br>
+                    时间: <span class="text-blue-400">120秒</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback -->
+    <div id="feedback" class="absolute top-1/2 left-50% z-20 text-white font-black text-8xl pointer-events-none drop-shadow-2xl italic text-center" style="left:50%; transform: translate(-50%, -50%);"></div>
+
+    <!-- Game Over -->
+    <div id="game-over" class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center hidden backdrop-blur-xl">
+        <div class="glass p-16 rounded-[4rem] text-center max-w-md w-full border border-white/10">
+            <h2 class="text-white text-6xl font-black mb-2 tracking-tighter">挑战结束</h2>
+            <p class="text-blue-400 font-bold tracking-widest uppercase text-xs mb-8">探索报告已生成</p>
+            <div class="bg-white/5 py-8 rounded-[2.5rem] mb-10 border border-white/10">
+                <div class="text-[10px] text-white/40 uppercase font-black mb-1">最终得分</div>
+                <div id="final-score" class="text-7xl font-black text-white">0</div>
+                <div class="text-xs text-blue-300 mt-4 font-bold" id="final-accuracy">正确率: 0%</div>
+            </div>
+            <button onclick="startGame()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-6 rounded-3xl transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-blue-500/20 text-xl tracking-widest uppercase">重新开始</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const countryData = [
+            { id: "us", name: "United States", cnName: "美国", lat: 37, lon: -95 },
+            { id: "br", name: "Brazil", cnName: "巴西", lat: -14, lon: -51 },
+            { id: "au", name: "Australia", cnName: "澳大利亚", lat: -25, lon: 133 },
+            { id: "fr", name: "France", cnName: "法国", lat: 46, lon: 2 },
+            { id: "jp", name: "Japan", cnName: "日本", lat: 36, lon: 138 },
+            { id: "in", name: "India", cnName: "印度", lat: 20, lon: 78 },
+            { id: "gb", name: "United Kingdom", cnName: "英国", lat: 55, lon: -3 },
+            { id: "ca", name: "Canada", cnName: "加拿大", lat: 56, lon: -106 },
+            { id: "cn", name: "China", cnName: "中国", lat: 35, lon: 104 },
+            { id: "eg", name: "Egypt", cnName: "埃及", lat: 26, lon: 30 },
+            { id: "za", name: "South Africa", cnName: "南非", lat: -30, lon: 24 },
+            { id: "ru", name: "Russia", cnName: "俄罗斯", lat: 61, lon: 105 },
+            { id: "mx", name: "Mexico", cnName: "墨西哥", lat: 23, lon: -102 },
+            { id: "ar", name: "Argentina", cnName: "阿根廷", lat: -38, lon: -63 },
+            { id: "th", name: "Thailand", cnName: "泰国", lat: 15, lon: 100 },
+            { id: "it", name: "Italy", cnName: "意大利", lat: 41, lon: 12 },
+            { id: "es", name: "Spain", cnName: "西班牙", lat: 40, lon: -3 },
+            { id: "tr", name: "Turkey", cnName: "土耳其", lat: 38, lon: 35 },
+            { id: "id", name: "Indonesia", cnName: "印度尼西亚", lat: -0.7, lon: 113 },
+            { id: "sa", name: "Saudi Arabia", cnName: "沙特阿拉伯", lat: 23, lon: 45 },
+            { id: "de", name: "Germany", cnName: "德国", lat: 51, lon: 10 },
+            { id: "kr", name: "South Korea", cnName: "韩国", lat: 36, lon: 127 },
+            { id: "nz", name: "New Zealand", cnName: "新西兰", lat: -40, lon: 174 },
+            { id: "se", name: "Sweden", cnName: "瑞典", lat: 60, lon: 18 },
+            { id: "gr", name: "Greece", cnName: "希腊", lat: 39, lon: 22 },
+            { id: "no", name: "Norway", cnName: "挪威", lat: 60, lon: 8 },
+            { id: "ke", name: "Kenya", cnName: "肯尼亚", lat: -1, lon: 38 },
+            { id: "pe", name: "Peru", cnName: "秘鲁", lat: -9, lon: -75 },
+            { id: "vn", name: "Vietnam", cnName: "越南", lat: 14, lon: 108 },
+            { id: "pl", name: "Poland", cnName: "波兰", lat: 52, lon: 19 },
+            { id: "ch", name: "Switzerland", cnName: "瑞士", lat: 47, lon: 8 },
+            { id: "cl", name: "Chile", cnName: "智利", lat: -35, lon: -71 },
+            { id: "my", name: "Malaysia", cnName: "马来西亚", lat: 4, lon: 101 },
+            { id: "fi", name: "Finland", cnName: "芬兰", lat: 61, lon: 25 },
+            { id: "nl", name: "Netherlands", cnName: "荷兰", lat: 52, lon: 5 },
+            { id: "at", name: "Austria", cnName: "奥地利", lat: 47, lon: 14 },
+            { id: "pt", name: "Portugal", cnName: "葡萄牙", lat: 39, lon: -8 },
+            { id: "cz", name: "Czech Republic", cnName: "捷克", lat: 49, lon: 15 },
+            { id: "hu", name: "Hungary", cnName: "匈牙利", lat: 47, lon: 19 },
+            { id: "ie", name: "Ireland", cnName: "爱尔兰", lat: 53, lon: -8 },
+            { id: "ph", name: "Philippines", cnName: "菲律宾", lat: 13, lon: 121 },
+            { id: "pk", name: "Pakistan", cnName: "巴基斯坦", lat: 30, lon: 69 },
+            { id: "is", name: "Iceland", cnName: "冰岛", lat: 64, lon: -18 },
+            { id: "il", name: "Israel", cnName: "以色列", lat: 31, lon: 35 },
+            { id: "ua", name: "Ukraine", cnName: "乌克兰", lat: 48, lon: 31 },
+            { id: "dz", name: "Algeria", cnName: "阿尔及利亚", lat: 28, lon: 1 },
+            { id: "ng", name: "Nigeria", cnName: "尼日利亚", lat: 9, lon: 8 },
+            { id: "ma", name: "Morocco", cnName: "摩洛哥", lat: 31, lon: -7 },
+            { id: "sg", name: "Singapore", cnName: "新加坡", lat: 1.3, lon: 103 },
+            { id: "co", name: "Colombia", cnName: "哥伦比亚", lat: 4, lon: -74 },
+            { id: "kh", name: "Cambodia", cnName: "柬埔寨", lat: 12, lon: 104 }
+        ];
+
+        let scene, camera, renderer, globe;
+        let score = 0, streak = 0, timeLeft = 120, gameActive = false;
+        let currentTarget = null, currentSession = [], questionIndex = 0, correctCount = 0;
+        let isDragging = false, previousMousePosition = { x: 0, y: 0 };
+
+        // --- SHADERS ---
+        const atmosVS = `varying vec3 vN; void main() { vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+        const atmosFS = `varying vec3 vN; void main() { float i = pow(0.6 - dot(vN, vec3(0, 0, 1.0)), 2.5); gl_FragColor = vec4(0.4, 0.7, 1.0, 1.0) * i; }`;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 320;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+            sun.position.set(15, 10, 15);
+            scene.add(sun);
+
+            const loader = new THREE.TextureLoader();
+            const earthTex = loader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg', () => {
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').style.display = 'none', 1000);
+            });
+
+            globe = new THREE.Mesh(
+                new THREE.SphereGeometry(100, 128, 128),
+                new THREE.MeshPhongMaterial({ 
+                    map: earthTex, 
+                    shininess: 45, 
+                    specular: 0x444444 
+                })
+            );
+            scene.add(globe);
+
+            const atmosphere = new THREE.Mesh(
+                new THREE.SphereGeometry(105, 128, 128),
+                new THREE.ShaderMaterial({ vertexShader: atmosVS, fragmentShader: atmosFS, blending: THREE.AdditiveBlending, side: THREE.BackSide, transparent: true })
+            );
+            scene.add(atmosphere);
+
+            window.addEventListener('mousedown', (e) => { isDragging = true; previousMousePosition = { x: e.clientX, y: e.clientY }; });
+            window.addEventListener('mouseup', () => isDragging = false);
+            window.addEventListener('mousemove', handleDrag);
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth/window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            animate();
+            startGame();
+        }
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSfx(freq, type = 'sine') {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+            o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function handleDrag(e) {
+            if (!isDragging) return;
+            globe.rotation.y += (e.clientX - previousMousePosition.x) * 0.005;
+            globe.rotation.x += (e.clientY - previousMousePosition.y) * 0.005;
+            previousMousePosition = { x: e.clientX, y: e.clientY };
+        }
+
+        function rotateTo(lat, lon) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+            new THREE.Quaternion().setFromEuler(new THREE.Euler(-phi + Math.PI/2, theta - Math.PI/2, 0, 'YXZ')).copy(globe.quaternion);
+        }
+
+        function startGame() {
+            score = 0; streak = 0; timeLeft = 120; questionIndex = 0; correctCount = 0;
+            gameActive = true;
+            document.getElementById('game-over').classList.add('hidden');
+            currentSession = [...countryData].sort(() => 0.5 - Math.random()).slice(0, 20);
+            nextQuestion();
+            if(window.gameTimer) clearInterval(window.gameTimer);
+            window.gameTimer = setInterval(() => {
+                if (!gameActive) return;
+                timeLeft--;
+                updateUI();
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function nextQuestion() {
+            if (questionIndex >= 20) { endGame(); return; }
+            currentTarget = currentSession[questionIndex];
+            document.getElementById('flag-img').src = `https://flagcdn.com/w320/${currentTarget.id}.png`;
+            document.getElementById('progress-text').textContent = `${questionIndex + 1}/20`;
+            let options = [currentTarget];
+            while (options.length < 4) {
+                let random = countryData[Math.floor(Math.random() * countryData.length)];
+                if (!options.includes(random)) options.push(random);
+            }
+            options.sort(() => 0.5 - Math.random());
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn bg-white/5 p-4 rounded-3xl text-white font-bold text-[13px] uppercase tracking-wider';
+                btn.innerHTML = `<span>${opt.name}</span> <span class="cn-text">${opt.cnName}</span>`;
+                btn.onclick = () => handleChoice(opt.id);
+                container.appendChild(btn);
+            });
+            updateUI();
+        }
+
+        function handleChoice(id) {
+            if (!gameActive) return;
+            const isCorrect = (id === currentTarget.id);
+            if (isCorrect) {
+                score += 10 + (streak * 5);
+                streak++;
+                correctCount++;
+                playSfx(880);
+                showFeedback("正确！", "text-cyan-400");
+                rotateTo(currentTarget.lat, currentTarget.lon);
+            } else {
+                streak = 0;
+                playSfx(180, 'sawtooth');
+                showFeedback("错误！", "text-red-500");
+            }
+            questionIndex++;
+            setTimeout(nextQuestion, 1200);
+        }
+
+        function showFeedback(txt, cls) {
+            const el = document.getElementById('feedback');
+            el.textContent = txt;
+            el.className = `absolute top-1/2 left-1/2 z-20 font-black text-8xl pointer-events-none drop-shadow-2xl show ${cls}`;
+            setTimeout(() => el.classList.remove('show'), 900);
+        }
+
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('streak-count').textContent = streak;
+            document.getElementById('streak-badge').style.opacity = streak > 1 ? "1" : "0";
+            document.getElementById('timer-text').textContent = timeLeft + "s";
+            document.getElementById('timer-bar').style.width = (timeLeft / 120 * 100) + "%";
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(window.gameTimer);
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('final-accuracy').textContent = `正确率: ${Math.round((correctCount/20)*100)}%`;
+            document.getElementById('game-over').classList.remove('hidden');
+            playSfx(440, 'sine');
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!isDragging && gameActive) globe.rotation.y += 0.0008;
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
